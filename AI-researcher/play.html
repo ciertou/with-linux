@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sudoku</title>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  min-height:100vh;
+  background:#171717;
+  color:#eee;
+  font-family:Arial,sans-serif;
+  padding:25px 12px;
+}
+
+h1{text-align:center;margin:0 0 20px;font-size:42px}
+
+.tabs{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  margin-bottom:20px;
+  flex-wrap:wrap;
+}
+
+.tab{
+  padding:10px 20px;
+  border:1px solid #666;
+  border-radius:25px;
+  background:#292929;
+  color:white;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.tab.active{
+  background:white;
+  color:#111;
+}
+
+.game{
+  display:none;
+  max-width:620px;
+  margin:auto;
+  background:#222;
+  border:1px solid #444;
+  border-radius:18px;
+  padding:20px;
+}
+
+.game.active{display:block}
+
+h2{text-align:center;margin:0 0 15px}
+
+.board{
+  width:min(95vw,560px);
+  aspect-ratio:1;
+  margin:auto;
+  display:grid;
+  grid-template-columns:repeat(9,1fr);
+  background:white;
+  border:3px solid white;
+}
+
+.cell{
+  background:#252525;
+  color:#eee;
+  border:1px solid #555;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:clamp(20px,5vw,35px);
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.cell:nth-child(3n){border-right:2px solid white}
+.cell:nth-child(27n+1),
+.cell:nth-child(27n+2),
+.cell:nth-child(27n+3),
+.cell:nth-child(27n+4),
+.cell:nth-child(27n+5),
+.cell:nth-child(27n+6),
+.cell:nth-child(27n+7),
+.cell:nth-child(27n+8),
+.cell:nth-child(27n+9){}
+
+.cell:nth-child(n+19):nth-child(-n+27),
+.cell:nth-child(n+46):nth-child(-n+54){
+  border-bottom:2px solid white;
+}
+
+.given{color:white}
+.user{color:#62c7ff}
+.selected{background:#38566a!important}
+.peer{background:#303c43}
+.same{background:#3c5038}
+.conflict{background:#5a2929!important;color:#ff7777}
+
+.numbers{
+  display:grid;
+  grid-template-columns:repeat(9,1fr);
+  gap:7px;
+  max-width:440px;
+  margin:18px auto;
+}
+
+.num,.btn{
+  border:1px solid #555;
+  background:#333;
+  color:white;
+  border-radius:9px;
+  padding:10px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.num{font-size:18px}
+
+.controls{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.btn:hover,.num:hover,.tab:hover{background:#444}
+
+.win{
+  text-align:center;
+  color:#8ee38e;
+  font-weight:bold;
+  min-height:24px;
+  margin:8px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Sudoku</h1>
+
+<div class="tabs">
+  <button class="tab active" onclick="showGame('mild',this)">Mild</button>
+  <button class="tab" onclick="showGame('difficult',this)">Difficult</button>
+  <button class="tab" onclick="showGame('fiendish',this)">Fiendish</button>
+</div>
+
+<div id="mild" class="game active">
+  <h2>Mild</h2>
+  <div class="board"></div>
+  <div class="win"></div>
+  <div class="numbers"></div>
+  <div class="controls">
+    <button class="btn" onclick="check('mild')">Check</button>
+    <button class="btn" onclick="hint('mild')">Hint</button>
+    <button class="btn" onclick="resetGame('mild')">Reset</button>
+  </div>
+</div>
+
+<div id="difficult" class="game">
+  <h2>Difficult</h2>
+  <div class="board"></div>
+  <div class="win"></div>
+  <div class="numbers"></div>
+  <div class="controls">
+    <button class="btn" onclick="check('difficult')">Check</button>
+    <button class="btn" onclick="hint('difficult')">Hint</button>
+    <button class="btn" onclick="resetGame('difficult')">Reset</button>
+  </div>
+</div>
+
+<div id="fiendish" class="game">
+  <h2>Fiendish</h2>
+  <div class="board"></div>
+  <div class="win"></div>
+  <div class="numbers"></div>
+  <div class="controls">
+    <button class="btn" onclick="check('fiendish')">Check</button>
+    <button class="btn" onclick="hint('fiendish')">Hint</button>
+    <button class="btn" onclick="resetGame('fiendish')">Reset</button>
+  </div>
+</div>
+
+<script>
+const puzzles={
+mild:[
+[0,0,1,0,9,0,2,7,0],
+[0,0,9,0,0,2,0,5,0],
+[2,0,0,0,0,3,0,0,0],
+[3,0,0,0,1,4,0,0,2],
+[0,8,0,0,0,0,0,4,0],
+[1,0,0,2,8,0,0,0,5],
+[0,0,0,9,0,0,0,0,7],
+[0,1,0,3,0,0,9,0,0],
+[0,4,6,0,7,0,5,0,0]
+],
+
+difficult:[
+[0,0,0,0,0,8,0,0,7],
+[8,1,7,0,0,2,0,0,0],
+[0,0,0,0,5,0,0,1,4],
+[7,0,2,0,9,0,1,0,5],
+[0,0,0,0,0,0,0,0,0],
+[5,0,8,0,7,0,3,0,2],
+[3,7,0,0,8,0,0,0,0],
+[0,0,0,4,0,0,9,7,3],
+[4,0,0,5,0,0,0,0,0]
+],
+
+fiendish:[
+[7,5,0,0,9,0,0,4,6],
+[9,0,1,0,0,0,3,0,2],
+[0,0,0,0,0,0,0,0,0],
+[2,0,0,6,0,1,0,0,7],
+[0,8,0,0,0,0,0,2,0],
+[1,0,0,3,0,8,0,0,5],
+[0,0,0,0,0,0,0,0,0],
+[3,0,9,0,0,0,2,0,4],
+[8,4,0,0,3,0,0,7,9]
+]
+};
+
+let boards={};
+let selected={mild:-1,difficult:-1,fiendish:-1};
+
+for(const name in puzzles){
+  boards[name]=puzzles[name].map(r=>r.slice());
+  draw(name);
+}
+
+function draw(name){
+  const game=document.getElementById(name);
+  const board=game.querySelector('.board');
+  const nums=game.querySelector('.numbers');
+
+  board.innerHTML='';
+  nums.innerHTML='';
+
+  for(let i=0;i<81;i++){
+    let r=Math.floor(i/9),c=i%9;
+    let b=document.createElement('button');
+    b.className='cell';
+
+    if(puzzles[name][r][c]){
+      b.classList.add('given');
+    }else{
+      b.classList.add('user');
+    }
+
+    b.textContent=boards[name][r][c]||'';
+
+    if(i===selected[name]) b.classList.add('selected');
+
+    if(selected[name]>=0){
+      let sr=Math.floor(selected[name]/9);
+      let sc=selected[name]%9;
+      if(r===sr||c===sc||
+        (Math.floor(r/3)===Math.floor(sr/3)&&
+         Math.floor(c/3)===Math.floor(sc/3)))
+        b.classList.add('peer');
+
+      if(boards[name][r][c] &&
+         boards[name][r][c]===boards[name][sr][sc])
+        b.classList.add('same');
+    }
+
+    b.onclick=()=>{
+      selected[name]=i;
+      draw(name);
+    };
+
+    board.appendChild(b);
+  }
+
+  for(let n=1;n<=9;n++){
+    let b=document.createElement('button');
+    b.className='num';
+    b.textContent=n;
+    b.onclick=()=>enter(name,n);
+    nums.appendChild(b);
+  }
+}
+
+function enter(name,n){
+  let i=selected[name];
+  if(i<0)return;
+
+  let r=Math.floor(i/9);
+  let c=i%9;
+
+  if(puzzles[name][r][c])return;
+
+  boards[name][r][c]=
+    boards[name][r][c]===n?0:n;
+
+  draw(name);
+}
+
+function resetGame(name){
+  boards[name]=puzzles[name].map(r=>r.slice());
+  selected[name]=-1;
+  document.querySelector(`#${name} .win`).textContent='';
+  draw(name);
+}
+
+function check(name){
+  let g=boards[name];
+  let bad=[];
+
+  for(let r=0;r<9;r++){
+    for(let c=0;c<9;c++){
+      let v=g[r][c];
+      if(!v)continue;
+
+      for(let k=0;k<9;k++){
+        if(k!==c&&g[r][k]===v)bad.push(r*9+c);
+        if(k!==r&&g[k][c]===v)bad.push(r*9+c);
+      }
+
+      let br=Math.floor(r/3)*3;
+      let bc=Math.floor(c/3)*3;
+
+      for(let rr=br;rr<br+3;rr++)
+        for(let cc=bc;cc<bc+3;cc++)
+          if((rr!==r||cc!==c)&&g[rr][cc]===v)
+            bad.push(r*9+c);
+    }
+  }
+
+  document.querySelectorAll(`#${name} .cell`)
+    .forEach((x,i)=>x.classList.toggle('conflict',bad.includes(i)));
+
+  let win=document.querySelector(`#${name} .win`);
+
+  if(g.flat().every(Boolean)&&bad.length===0)
+    win.textContent='🎉 Puzzle solved!';
+  else if(bad.length)
+    win.textContent='Some numbers conflict.';
+  else
+    win.textContent='No conflicts — keep going!';
+}
+
+function hint(name){
+  let solution=solve(
+    boards[name].map(r=>r.slice())
+  );
+
+  if(!solution)return;
+
+  let empty=[];
+
+  for(let r=0;r<9;r++)
+    for(let c=0;c<9;c++)
+      if(!boards[name][r][c])
+        empty.push([r,c]);
+
+  if(!empty.length)return;
+
+  let [r,c]=empty[
+    Math.floor(Math.random()*empty.length)
+  ];
+
+  boards[name][r][c]=solution[r][c];
+  selected[name]=r*9+c;
+
+  draw(name);
+
+  document.querySelector(`#${name} .win`)
+    .textContent=`Hint: row ${r+1}, column ${c+1}`;
+}
+
+function solve(g){
+
+  function candidates(r,c){
+    let result=[];
+
+    for(let n=1;n<=9;n++){
+      let ok=true;
+
+      for(let k=0;k<9;k++)
+        if(g[r][k]===n||g[k][c]===n)
+          ok=false;
+
+      let br=Math.floor(r/3)*3;
+      let bc=Math.floor(c/3)*3;
+
+      for(let rr=br;rr<br+3;rr++)
+        for(let cc=bc;cc<bc+3;cc++)
+          if(g[rr][cc]===n)ok=false;
+
+      if(ok)result.push(n);
+    }
+
+    return result;
+  }
+
+  function backtrack(){
+    let best=null;
+    let opts=null;
+
+    for(let r=0;r<9;r++){
+      for(let c=0;c<9;c++){
+
+        if(!g[r][c]){
+          let x=candidates(r,c);
+
+          if(!x.length)return false;
+
+          if(!opts||x.length<opts.length){
+            best=[r,c];
+            opts=x;
+          }
+        }
+      }
+    }
+
+    if(!best)return true;
+
+    let [r,c]=best;
+
+    for(let n of opts){
+      g[r][c]=n;
+
+      if(backtrack())return true;
+    }
+
+    g[r][c]=0;
+    return false;
+  }
+
+  return backtrack()?g:null;
+}
+
+function showGame(name,button){
+  document.querySelectorAll('.game')
+    .forEach(x=>x.classList.remove('active'));
+
+  document.querySelectorAll('.tab')
+    .forEach(x=>x.classList.remove('active'));
+
+  document.getElementById(name).classList.add('active');
+  button.classList.add('active');
+}
+
+document.addEventListener('keydown',e=>{
+
+  let active=document.querySelector('.game.active');
+  if(!active)return;
+
+  let name=active.id;
+
+  if(/^[1-9]$/.test(e.key)){
+    enter(name,+e.key);
+    e.preventDefault();
+  }
+
+  if(e.key==='0'||e.key==='Backspace'||e.key==='Delete'){
+    let i=selected[name];
+
+    if(i>=0){
+      let r=Math.floor(i/9);
+      let c=i%9;
+
+      if(!puzzles[name][r][c]){
+        boards[name][r][c]=0;
+        draw(name);
+      }
+    }
+
+    e.preventDefault();
+  }
+
+  if(e.key.startsWith('Arrow')){
+    let i=selected[name];
+    if(i<0)i=0;
+
+    if(e.key==='ArrowRight')i=(i+1)%81;
+    if(e.key==='ArrowLeft')i=(i+80)%81;
+    if(e.key==='ArrowDown')i=(i+9)%81;
+    if(e.key==='ArrowUp')i=(i+72)%81;
+
+    selected[name]=i;
+    draw(name);
+    e.preventDefault();
+  }
+});
+</script>
+
+</body>
+</html>
